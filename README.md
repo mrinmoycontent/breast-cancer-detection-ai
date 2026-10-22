@@ -1,4 +1,4 @@
-# 🩺 BreastCheck AI — Breast Ultrasound Image Classification
+# 🩺 Breast Cancer Detection Using AI | — Breast Ultrasound Image Classification
 
 ### An AI/ML Portfolio Project by Mrinmoy Choudhury
 
