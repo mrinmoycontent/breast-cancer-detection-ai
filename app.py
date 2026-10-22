@@ -5,21 +5,23 @@ from PIL import Image
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize
 from transformers import AutoModelForImageClassification
 
-# --------------------------------------------------
+# ==================================================
 # PAGE CONFIGURATION
-# --------------------------------------------------
+# ==================================================
 st.set_page_config(
     page_title="Breast Cancer Detection AI | BreastCheck",
     page_icon="🎗️",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-# --------------------------------------------------
+# ==================================================
 # MODEL CONFIGURATION
-# --------------------------------------------------
+# ==================================================
 MODEL_ID = "ghostsas001/busi-breast-ultrasound-siglip"
 
-@st.cache_resource(show_spinner="Loading the pretrained model...")
+
+@st.cache_resource(show_spinner="Loading the pretrained AI model...")
 def load_model():
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
@@ -35,9 +37,9 @@ def load_model():
     return model, device
 
 
-# --------------------------------------------------
+# ==================================================
 # IMAGE PREPROCESSING
-# --------------------------------------------------
+# ==================================================
 transform = Compose([
     Resize((224, 224)),
     ToTensor(),
@@ -48,71 +50,99 @@ transform = Compose([
 ])
 
 
-# --------------------------------------------------
-# APPLICATION HEADER
-# --------------------------------------------------
-st.title("🎗️ BreastCheck AI")
+# ==================================================
+# MAIN PAGE: BREAST CANCER DETECTION
+# ==================================================
+st.title("🎗️ BREAST CANCER DETECTION AI")
 
 st.subheader(
-    "AI-Based Breast Cancer Detection Using Ultrasound Images"
+    "BreastCheck AI | Ultrasound Image Classification"
 )
 
 st.markdown("""
-BreastCheck AI is an experimental deep learning application
-that classifies uploaded images into three model-defined
-categories:
+Welcome to **BreastCheck AI**, an experimental AI/ML portfolio
+project that demonstrates how deep learning can be used to
+classify breast ultrasound images.
+
+### What does this application do?
+
+Upload an image to see the pretrained model's predicted category
+and its scores for three model-defined classes:
 
 - **Benign**
 - **Malignant**
 - **Normal**
 
-The application uses a pretrained image-classification model
-to generate a predicted category and display scores for all
-available model classes.
+### Technology used
 
-**Technology stack:** Python, PyTorch, Transformers,
-Torchvision, Pillow and Streamlit.
+Python · PyTorch · Hugging Face Transformers · Torchvision ·
+Pillow · Streamlit
 """)
 
+st.info("""
+**Project by Mrinmoy Choudhury**
+
+Aspiring AI/ML Engineer | Data Science Enthusiast
+""")
+
+
+# ==================================================
+# IMPORTANT MEDICAL DISCLAIMER
+# ==================================================
 st.warning("""
-**Important medical disclaimer**
+### Important Medical Disclaimer
 
-This is an educational AI/ML prototype, not a clinically
-validated diagnostic tool. Predictions cannot confirm or
-rule out breast cancer and must not guide medical decisions.
+This application is an educational and experimental prototype.
+It is **not a clinically validated diagnostic tool**.
+
+The model may produce incorrect predictions. Its scores are not
+verified or calibrated diagnostic probabilities. This application
+cannot confirm or rule out breast cancer and must not be used to
+make medical, treatment, or screening decisions.
+
+Always consult a qualified healthcare professional for medical
+evaluation. Do not upload identifiable patient images.
 """)
 
 
-# --------------------------------------------------
+# ==================================================
 # IMAGE UPLOAD
-# --------------------------------------------------
-st.markdown("### Upload an Image")
+# ==================================================
+st.divider()
 
-st.caption(
-    "Upload a PNG, JPG, JPEG or WEBP image. "
-    "Use only de-identified images you have permission to use."
+st.header("📤 Upload a Breast Ultrasound Image")
+
+st.write(
+    "Select a PNG, JPG, JPEG, or WEBP image to run the "
+    "experimental classification model."
 )
 
 uploaded = st.file_uploader(
-    "Choose an image",
-    type=["png", "jpg", "jpeg", "webp"]
+    "Choose an image file",
+    type=["png", "jpg", "jpeg", "webp"],
+    help="Use only images you have permission to use."
 )
 
 
-# --------------------------------------------------
+# ==================================================
 # IMAGE CLASSIFICATION
-# --------------------------------------------------
+# ==================================================
 if uploaded is not None:
+
     try:
         image = Image.open(uploaded).convert("RGB")
 
+        st.subheader("Uploaded Image")
+
         st.image(
             image,
-            caption="Uploaded image",
+            caption="Image submitted for experimental classification",
             use_container_width=True
         )
 
-        with st.spinner("Running model inference..."):
+        with st.spinner(
+            "Loading the model and processing the image..."
+        ):
             model, device = load_model()
 
             input_tensor = transform(image)
@@ -120,6 +150,7 @@ if uploaded is not None:
 
             with torch.inference_mode():
                 outputs = model(pixel_values=input_tensor)
+
                 logits = outputs.logits
 
                 scores = torch.softmax(
@@ -127,15 +158,19 @@ if uploaded is not None:
                     dim=-1
                 )[0].cpu().tolist()
 
-        # Read class names from the pretrained model.
+        # Obtain class labels from the model configuration.
         id2label = model.config.id2label
 
         results = []
 
         for index, score in enumerate(scores):
+
             label = id2label.get(
                 index,
-                id2label.get(str(index), f"Class {index}")
+                id2label.get(
+                    str(index),
+                    f"Class {index}"
+                )
             )
 
             results.append({
@@ -143,23 +178,33 @@ if uploaded is not None:
                 "score": float(score) * 100
             })
 
+        # Display highest-scoring category first.
         results.sort(
             key=lambda result: result["score"],
             reverse=True
         )
 
-        # Display results.
+        # ------------------------------------------
+        # MODEL OUTPUT REPORT
+        # ------------------------------------------
         st.divider()
-        st.markdown("### Model Output Report")
+
+        st.header("📊 Model Output Report")
 
         st.metric(
             label="Predicted Class",
             value=results[0]["label"].title()
         )
 
-        st.markdown("#### Scores for All Model Classes")
+        st.caption(
+            "This is the category with the highest model score, "
+            "not a confirmed medical finding."
+        )
+
+        st.subheader("Scores for All Model Classes")
 
         for result in results:
+
             st.write(
                 f"**{result['label'].title()}** — "
                 f"{result['score']:.2f}%"
@@ -169,48 +214,63 @@ if uploaded is not None:
                 min(max(result["score"] / 100, 0.0), 1.0)
             )
 
-        st.info("""
-        These values are raw model scores after softmax, not
-        verified or calibrated diagnostic probabilities.
+        # ------------------------------------------
+        # RESULT LIMITATIONS
+        # ------------------------------------------
+        st.warning("""
+        **How to interpret these results**
 
-        The application does not independently verify image type.
-        Results may be incorrect and must not be used to diagnose
-        or rule out cancer.
+        These percentages are raw softmax scores produced by the
+        model. They are not verified or calibrated probabilities
+        of having or not having cancer.
+
+        The application does not verify that an uploaded file is
+        a breast ultrasound image. Predictions may be incorrect
+        and must not be used for diagnosis or treatment decisions.
         """)
 
     except Exception as exc:
+
         st.error(
             f"Unable to process the image: "
             f"{type(exc).__name__}: {exc}"
         )
 
         st.caption(
-            "If the model fails to load, check the Streamlit "
+            "If this problem persists, check the Streamlit "
             "deployment logs and available memory."
         )
 
 else:
+
     st.info(
-        "Upload an image to view the model's predicted class "
-        "and scores for all classes."
+        "No image uploaded yet. Upload an image above to view "
+        "the model's predicted class and class scores."
     )
 
 
-# --------------------------------------------------
+# ==================================================
 # FOOTER
-# --------------------------------------------------
+# ==================================================
 st.divider()
 
-st.caption(
-    "Developed by Mrinmoy Choudhury | "
-    "Aspiring AI/ML Engineer | Data Science Enthusiast"
-)
+st.markdown("""
+### About the Developer
 
-st.caption(
-    "Educational portfolio project • Not for clinical use"
-)
+**Mrinmoy Choudhury**  
+Aspiring AI/ML Engineer | Data Science Enthusiast
+
+This project demonstrates pretrained model integration,
+image preprocessing, deep learning inference, and deployment
+of an interactive AI application.
+""")
 
 st.markdown(
-    "[View Source Code on GitHub]"
-    "(https://github.com/mrinmoycontent/breast-cancer-detection-ai)"
+    "[View the source code on GitHub](https://github.com/"
+    "mrinmoycontent/breast-cancer-detection-ai)"
+)
+
+st.caption(
+    "BreastCheck AI | Educational portfolio project | "
+    "Not intended for clinical use."
 )
